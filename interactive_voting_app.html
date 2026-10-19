@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulseVote - Interactive Polling Platform</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Custom Glassmorphism & Micro-animations */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .dark .glass {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+        }
+
+        /* Smooth Progress Bar Transition */
+        .vote-progress-bar {
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Toast Animation */
+        @keyframes slideIn {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .toast-enter {
+            animation: slideIn 0.3s ease forwards;
+        }
+        .toast-exit {
+            animation: fadeOut 0.3s ease forwards;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.6);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-100 font-sans min-h-screen transition-colors duration-300 flex flex-col">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- Navigation Header -->
+    <header class="sticky top-0 z-40 glass border-b border-gray-200 dark:border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid font-bold fa-chart-simple text-xl"></i>
+                </div>
+                <span class="text-2xl font-bold tracking-tight gradient-text">PulseVote</span>
+            </div>
+
+            <!-- Actions Right -->
+            <div class="flex items-center gap-3 sm:gap-4">
+                <button id="create-poll-btn" class="px-4 py-2 rounded-xl gradient-bg text-white font-medium text-sm shadow-md hover:shadow-indigo-500/25 hover:opacity-95 transition flex items-center gap-2 active:scale-95">
+                    <i class="fa-solid fa-plus"></i>
+                    <span class="hidden sm:inline">Create Poll</span>
+                </button>
+                <button id="theme-toggle" class="p-2.5 rounded-xl bg-gray-200/60 dark:bg-gray-800/60 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition">
+                    <i id="theme-icon" class="fa-solid fa-moon text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Layout -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8">
+        
+        <!-- Hero Section Banner -->
+        <section class="relative rounded-3xl p-6 sm:p-10 overflow-hidden bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 text-white shadow-2xl">
+            <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-pink-500/20 rounded-full blur-3xl"></div>
+            <div class="absolute -left-10 -top-10 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl"></div>
+            <div class="relative z-10 max-w-2xl">
+                <span class="inline-block px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-semibold text-indigo-200 mb-3 border border-white/10">
+                    <i class="fa-solid fa-bolt mr-1 text-yellow-400"></i> Real-time Opinion Engine
+                </span>
+                <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3 leading-tight">
+                    Voice Your Opinion. <br class="hidden sm:inline"/>Shape Community Decisions.
+                </h1>
+                <p class="text-indigo-200 text-sm sm:text-base mb-6 leading-relaxed">
+                    Participate in active community polls, express your preferences, or create your custom dynamic survey in seconds.
+                </p>
+                <div class="flex flex-wrap gap-4 text-xs font-medium text-indigo-100">
+                    <div class="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
+                        <i class="fa-solid fa-shield-halved text-emerald-400"></i> 1 Vote Per User
+                    </div>
+                    <div class="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
+                        <i class="fa-solid fa-clock text-pink-400"></i> Real-time Countdown
+                    </div>
+                    <div class="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
+                        <i class="fa-solid fa-database text-cyan-400"></i> Local Storage Saved
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Search & Filter Controls Toolbar -->
+        <section class="flex flex-col md:flex-row items-center justify-between gap-4 glass p-4 rounded-2xl shadow-sm">
+            <!-- Search Input -->
+            <div class="relative w-full md:w-80">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                <input type="text" id="search-input" placeholder="Search polls..." class="w-full pl-10 pr-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800/80 border border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-900 focus:outline-none text-sm transition">
+            </div>
+
+            <!-- Categories Filter -->
+            <div class="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 no-scrollbar" id="category-filters">
+                <button class="filter-btn active px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-indigo-600 text-white transition shadow-sm" data-category="All">
+                    All Polls
+                </button>
+                <button class="filter-btn px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition" data-category="Tech">
+                    Tech
+                </button>
+                <button class="filter-btn px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition" data-category="Gaming">
+                    Gaming
+                </button>
+                <button class="filter-btn px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition" data-category="Lifestyle">
+                    Lifestyle
+                </button>
+                <button class="filter-btn px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition" data-category="General">
+                    General
+                </button>
+            </div>
+        </section>
+
+        <!-- Navigation Tabs: Active / Completed -->
+        <div class="border-b border-gray-200 dark:border-gray-800 flex gap-6">
+            <button id="tab-active" class="pb-3 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 flex items-center gap-2 transition">
+                <i class="fa-solid fa-fire"></i> Active Polls
+                <span id="active-count" class="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300">0</span>
+            </button>
+            <button id="tab-completed" class="pb-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex items-center gap-2 transition">
+                <i class="fa-solid fa-square-check"></i> Completed
+                <span id="completed-count" class="px-2 py-0.5 rounded-full text-xs bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400">0</span>
+            </button>
+        </div>
+
+        <!-- Polls Grid Layout Container -->
+        <section id="polls-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[300px]">
+            <!-- Poll cards injected via JavaScript -->
+        </section>
+
+        <!-- Empty State View -->
+        <div id="empty-state" class="hidden flex-col items-center justify-center py-16 text-center glass rounded-3xl">
+            <div class="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center text-indigo-500 text-2xl mb-4">
+                <i class="fa-solid fa-inbox"></i>
+            </div>
+            <h3 class="text-lg font-bold mb-1">No polls found</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 max-w-sm mb-6">There are no polls matching your selected category or search term.</p>
+            <button id="empty-create-btn" class="px-4 py-2 rounded-xl gradient-bg text-white text-sm font-medium shadow-md hover:opacity-90 transition">
+                Create First Poll
+            </button>
+        </div>
+    </main>
+
+    <!-- Create Poll Modal -->
+    <div id="create-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div class="glass bg-white dark:bg-gray-900 w-full max-w-xl rounded-3xl p-6 sm:p-8 shadow-2xl transform scale-95 transition-transform duration-300 overflow-y-auto max-h-[90vh]">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-100 dark:border-gray-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </div>
+                    <h2 class="text-xl font-bold">Create New Poll</h2>
+                </div>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form -->
+            <form id="poll-form" class="space-y-5">
+                <!-- Poll Question -->
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Question / Topic *</label>
+                    <input type="text" id="poll-question" required placeholder="What's your favorite frontend framework in 2026?" class="w-full px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 focus:border-indigo-500 focus:outline-none text-sm transition">
+                </div>
+
+                <!-- Category & Expiration Row -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Category</label>
+                        <select id="poll-category" class="w-full px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 focus:border-indigo-500 focus:outline-none text-sm transition">
+                            <option value="Tech">Tech</option>
+                            <option value="Gaming">Gaming</option>
+                            <option value="Lifestyle">Lifestyle</option>
+                            <option value="General" selected>General</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Duration Timer</label>
+                        <select id="poll-duration" class="w-full px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 focus:border-indigo-500 focus:outline-none text-sm transition">
+                            <option value="1">1 Minute (Quick Test)</option>
+                            <option value="60">1 Hour</option>
+                            <option value="1440" selected>24 Hours</option>
+                            <option value="4320">3 Days</option>
+                            <option value="10080">7 Days</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Poll Options -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Options (Min 2, Max 6) *</label>
+                        <span id="options-count" class="text-xs text-gray-400">4 Options</span>
+                    </div>
+                    <div id="options-container" class="space-y-2.5">
+                        <div class="flex items-center gap-2">
+                            <input type="text" required placeholder="Option 1" class="poll-option-input w-full px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 focus:border-indigo-500 focus:outline-none text-sm">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="text" required placeholder="Option 2" class="poll-option-input w-full px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 focus:border-indigo-500 focus:outline-none text-sm">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="text" placeholder="Option 3" class="poll-option-input w-full px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 focus:border-indigo-500 focus:outline-none text-sm">
+                            <button type="button" class="remove-option-btn text-red-400 hover:text-red-600 p-2"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="text" placeholder="Option 4" class="poll-option-input w-full px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 focus:border-indigo-500 focus:outline-none text-sm">
+                            <button type="button" class="remove-option-btn text-red-400 hover:text-red-600 p-2"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="add-option-btn" class="mt-3 text-xs font-semibold text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-plus-circle text-sm"></i> Add Option
+                    </button>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-4 flex justify-end gap-3 border-t border-gray-100 dark:border-gray-800">
+                    <button type="button" id="cancel-modal-btn" class="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl gradient-bg text-white text-sm font-semibold shadow-md hover:opacity-95 transition">
+                        Publish Poll
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Quick Dynamic Add-Option Modal -->
+    <div id="add-single-option-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div class="glass bg-white dark:bg-gray-900 w-full max-w-md rounded-2xl p-6 shadow-2xl transform scale-95 transition-transform duration-300">
+            <h3 class="text-lg font-bold mb-3">Add Custom Option</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Append a new candidate choice to this active poll.</p>
+            <input type="text" id="custom-option-text" placeholder="Enter new option text..." class="w-full px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 focus:border-indigo-500 focus:outline-none text-sm mb-5">
+            <div class="flex justify-end gap-3">
+                <button id="cancel-add-single-btn" class="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-medium">Cancel</button>
+                <button id="confirm-add-single-btn" class="px-5 py-2 rounded-xl gradient-bg text-white text-xs font-semibold">Add Option</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-auto border-t border-gray-200 dark:border-gray-800 py-6 text-center text-xs text-gray-500 dark:text-gray-400">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p>© 2026 PulseVote App. All rights reserved.</p>
+            <div class="flex gap-4">
+                <a href="#" class="hover:underline">Privacy Policy</a>
+                <a href="#" class="hover:underline">Terms of Service</a>
+                <a href="#" class="hover:underline">Support</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        /**
+         * State Management & Initial Data Setup
+         */
+        const STORAGE_KEY_POLLS = 'pulsevote_polls_v2';
+        const STORAGE_KEY_USER_VOTES = 'pulsevote_user_votes_v2';
+
+        // Default seed data if local storage is empty
+        const defaultPolls = [
+            {
+                id: 'poll-1',
+                question: 'Which frontend framework/library are you using most in 2026?',
+                category: 'Tech',
+                createdAt: Date.now(),
+                expiresAt: Date.now() + 86400000, // 24 Hours from now
+                options: [
+                    { id: 'opt-1', text: 'React / Next.js', votes: 42 },
+                    { id: 'opt-2', text: 'Vue / Nuxt', votes: 18 },
+                    { id: 'opt-3', text: 'Svelte / SvelteKit', votes: 25 },
+                    { id: 'opt-4', text: 'Angular / Analog', votes: 9 }
+                ]
+            },
+            {
+                id: 'poll-2',
+                question: 'What is your Game of the Year favorite style?',
+                category: 'Gaming',
+                createdAt: Date.now() - 90000000,
+                expiresAt: Date.now() - 3600000, // Expired (Completed)
+                options: [
+                    { id: 'opt-201', text: 'Open World RPG', votes: 88 },
+                    { id: 'opt-202', text: 'Tactical FPS', votes: 34 },
+                    { id: 'opt-203', text: 'Indie Roguelike', votes: 62 },
+                    { id: 'opt-204', text: 'Strategy / City Builder', votes: 20 }
+                ]
+            }
+        ];
+
+        let polls = JSON.parse(localStorage.getItem(STORAGE_KEY_POLLS)) || defaultPolls;
+        let userVotes = JSON.parse(localStorage.getItem(STORAGE_KEY_USER_VOTES)) || {}; // { pollId: optionId }
+
+        let currentTab = 'active'; // 'active' | 'completed'
+        let selectedCategory = 'All';
+        let searchQuery = '';
+        let activeTargetPollForOption = null;
+
+        /**
+         * DOM Elements
+         */
+        const pollsContainer = document.getElementById('polls-container');
+        const emptyState = document.getElementById('empty-state');
+        const searchInput = document.getElementById('search-input');
+        const activeCountEl = document.getElementById('active-count');
+        const completedCountEl = document.getElementById('completed-count');
+        const tabActiveBtn = document.getElementById('tab-active');
+        const tabCompletedBtn = document.getElementById('tab-completed');
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+
+        // Modal Elements
+        const createModal = document.getElementById('create-modal');
+        const createPollBtn = document.getElementById('create-poll-btn');
+        const emptyCreateBtn = document.getElementById('empty-create-btn');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const cancelModalBtn = document.getElementById('cancel-modal-btn');
+        const pollForm = document.getElementById('poll-form');
+        const optionsContainer = document.getElementById('options-container');
+        const addOptionBtn = document.getElementById('add-option-btn');
+        const optionsCountEl = document.getElementById('options-count');
+
+        // Single Option Modal
+        const addSingleModal = document.getElementById('add-single-option-modal');
+        const customOptionInput = document.getElementById('custom-option-text');
+        const confirmAddSingleBtn = document.getElementById('confirm-add-single-btn');
+        const cancelAddSingleBtn = document.getElementById('cancel-add-single-btn');
+
+        /**
+         * Helper Functions
+         */
+        function saveToStorage() {
+            localStorage.setItem(STORAGE_KEY_POLLS, JSON.stringify(polls));
+            localStorage.setItem(STORAGE_KEY_USER_VOTES, JSON.stringify(userVotes));
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgClass = 'bg-gray-900 text-white dark:bg-white dark:text-gray-900';
+            let icon = 'fa-circle-info text-indigo-400';
+
+            if (type === 'success') {
+                icon = 'fa-circle-check text-emerald-400';
+            } else if (type === 'warning') {
+                icon = 'fa-triangle-exclamation text-amber-400';
+            } else if (type === 'error') {
+                icon = 'fa-circle-xmark text-rose-400';
+            }
+
+            toast.className = `toast-enter pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border border-white/10 text-xs font-medium ${bgClass}`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-base"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function isPollExpired(poll) {
+            return Date.now() >= poll.expiresAt;
+        }
+
+        function formatTimeRemaining(ms) {
+            if (ms <= 0) return 'Ended';
+            const seconds = Math.floor((ms / 1000) % 60);
+            const minutes = Math.floor((ms / (1000 * 60)) % 60);
+            const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
+            const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+
+            if (days > 0) return `${days}d ${hours}h left`;
+            if (hours > 0) return `${hours}h ${minutes}m left`;
+            if (minutes > 0) return `${minutes}m ${seconds}s left`;
+            return `${seconds}s left`;
+        }
+
+        function getCategoryBadgeColor(category) {
+            switch (category) {
+                case 'Tech': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+                case 'Gaming': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300';
+                case 'Lifestyle': return 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300';
+                default: return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
+            }
+        }
+
+        /**
+         * Render Main View
+         */
+        function renderPolls() {
+            pollsContainer.innerHTML = '';
+            
+            // Filter logic
+            const filteredPolls = polls.filter(poll => {
+                const expired = isPollExpired(poll);
+                const matchesTab = currentTab === 'active' ? !expired : expired;
+                const matchesCategory = selectedCategory === 'All' || poll.category === selectedCategory;
+                const matchesSearch = poll.question.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchesTab && matchesCategory && matchesSearch;
+            });
+
+            // Update tab badges
+            const activeCount = polls.filter(p => !isPollExpired(p)).length;
+            const completedCount = polls.filter(p => isPollExpired(p)).length;
+            activeCountEl.textContent = activeCount;
+            completedCountEl.textContent = completedCount;
+
+            if (filteredPolls.length === 0) {
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+            }
+
+            // Render Cards
+            filteredPolls.forEach(poll => {
+                const totalVotes = poll.options.reduce((sum, opt) => sum + opt.votes, 0);
+                const hasVoted = userVotes.hasOwnProperty(poll.id);
+                const userVotedOptionId = userVotes[poll.id];
+                const expired = isPollExpired(poll);
+
+                const card = document.createElement('div');
+                card.className = 'glass rounded-3xl p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100 dark:border-gray-800/80';
+                
+                // Build Card HTML
+                let optionsHTML = '';
+                poll.options.forEach(option => {
+                    const percentage = totalVotes > 0 ? Math.round((option.votes / totalVotes) * 100) : 0;
+                    const isSelected = userVotedOptionId === option.id;
+
+                    if (hasVoted || expired) {
+                        // Results View Mode
+                        optionsHTML += `
+                            <div class="relative overflow-hidden rounded-xl border ${isSelected ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30' : 'border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40'} p-3.5 transition">
+                                <div class="vote-progress-bar absolute top-0 left-0 bottom-0 ${isSelected ? 'bg-indigo-500/20 dark:bg-indigo-500/30' : 'bg-gray-200 dark:bg-gray-700/50'}" style="width: ${percentage}%"></div>
+                                <div class="relative flex justify-between items-center text-xs sm:text-sm font-medium z-10">
+                                    <span class="flex items-center gap-2 font-semibold">
+                                        ${option.text}
+                                        ${isSelected ? '<i class="fa-solid fa-circle-check text-indigo-600 dark:text-indigo-400 text-sm"></i>' : ''}
+                                    </span>
+                                    <span class="text-gray-600 dark:text-gray-300 font-bold">${percentage}% <span class="text-xs font-normal text-gray-400">(${option.votes})</span></span>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // Interactive Voting Mode
+                        optionsHTML += `
+                            <button onclick="handleVote('${poll.id}', '${option.id}')" class="w-full text-left p-3.5 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-indigo-500 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 active:scale-[0.99] transition flex items-center justify-between text-xs sm:text-sm font-semibold group">
+                                <span class="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">${option.text}</span>
+                                <i class="fa-regular fa-circle text-gray-300 group-hover:text-indigo-500 transition"></i>
+                            </button>
+                        `;
+                    }
+                });
+
+                card.innerHTML = `
+                    <div>
+                        <!-- Header / Meta -->
+                        <div class="flex items-center justify-between gap-2 mb-3">
+                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold ${getCategoryBadgeColor(poll.category)}">
+                                ${poll.category}
+                            </span>
+                            <div class="flex items-center gap-1.5 text-xs font-medium text-gray-400">
+                                <i class="fa-regular fa-clock"></i>
+                                <span class="timer-countdown" data-expires="${poll.expiresAt}">
+                                    ${formatTimeRemaining(poll.expiresAt - Date.now())}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Question Title -->
+                        <h3 class="text-base sm:text-lg font-bold mb-4 leading-snug">${escapeHTML(poll.question)}</h3>
+
+                        <!-- Options List -->
+                        <div class="space-y-2.5 mb-6">
+                            ${optionsHTML}
+                        </div>
+                    </div>
+
+                    <!-- Card Footer Actions -->
+                    <div class="pt-4 border-t border-gray-100 dark:border-gray-800/80 flex items-center justify-between text-xs text-gray-400">
+                        <span class="font-medium"><i class="fa-solid fa-users text-gray-400 mr-1"></i> ${totalVotes} total votes</span>
+                        
+                        <div class="flex items-center gap-2">
+                            ${!expired ? `
+                                <button onclick="openAddOptionModal('${poll.id}')" title="Add Choice" class="p-1.5 hover:text-indigo-500 transition">
+                                    <i class="fa-solid fa-plus-circle text-sm"></i>
+                                </button>
+                            ` : ''}
+                            ${hasVoted && !expired ? `
+                                <button onclick="resetUserVote('${poll.id}')" title="Change/Reset Vote" class="p-1.5 hover:text-amber-500 transition">
+                                    <i class="fa-solid fa-rotate-left text-sm"></i>
+                                </button>
+                            ` : ''}
+                            <button onclick="deletePoll('${poll.id}')" title="Delete Poll" class="p-1.5 hover:text-rose-500 transition">
+                                <i class="fa-solid fa-trash-can text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                pollsContainer.appendChild(card);
+            });
+        }
+
+        /**
+         * Escape Utilities
+         */
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        /**
+         * Voting Logic
+         */
+        window.handleVote = function(pollId, optionId) {
+            const poll = polls.find(p => p.id === pollId);
+            if (!poll) return;
+
+            if (isPollExpired(poll)) {
+                showToast('This poll has already ended.', 'warning');
+                return;
+            }
+
+            if (userVotes[pollId]) {
+                showToast('You have already voted on this poll!', 'warning');
+                return;
+            }
+
+            const option = poll.options.find(o => o.id === optionId);
+            if (option) {
+                option.votes += 1;
+                userVotes[pollId] = optionId;
+                saveToStorage();
+                renderPolls();
+                showToast('Your vote has been recorded!', 'success');
+            }
+        };
+
+        window.resetUserVote = function(pollId) {
+            const votedOptionId = userVotes[pollId];
+            if (!votedOptionId) return;
+
+            const poll = polls.find(p => p.id === pollId);
+            if (poll) {
+                const option = poll.options.find(o => o.id === votedOptionId);
+                if (option && option.votes > 0) {
+                    option.votes -= 1;
+                }
+            }
+
+            delete userVotes[pollId];
+            saveToStorage();
+            renderPolls();
+            showToast('Your vote has been cleared. You can vote again!', 'info');
+        };
+
+        window.deletePoll = function(pollId) {
+            polls = polls.filter(p => p.id !== pollId);
+            delete userVotes[pollId];
+            saveToStorage();
+            renderPolls();
+            showToast('Poll removed successfully.', 'info');
+        };
+
+        /**
+         * Dynamic Add Option Logic
+         */
+        window.openAddOptionModal = function(pollId) {
+            activeTargetPollForOption = pollId;
+            customOptionInput.value = '';
+            addSingleModal.classList.remove('hidden');
+            setTimeout(() => addSingleModal.classList.remove('opacity-0'), 10);
+            customOptionInput.focus();
+        };
+
+        function closeAddSingleModal() {
+            addSingleModal.classList.add('opacity-0');
+            setTimeout(() => addSingleModal.classList.add('hidden'), 300);
+            activeTargetPollForOption = null;
+        }
+
+        confirmAddSingleBtn.addEventListener('click', () => {
+            const val = customOptionInput.value.trim();
+            if (!val) {
+                showToast('Option text cannot be empty.', 'warning');
+                return;
+            }
+
+            const poll = polls.find(p => p.id === activeTargetPollForOption);
+            if (poll) {
+                if (poll.options.length >= 8) {
+                    showToast('Maximum 8 options allowed per poll.', 'warning');
+                    return;
+                }
+                poll.options.push({
+                    id: 'opt-' + Date.now(),
+                    text: val,
+                    votes: 0
+                });
+                saveToStorage();
+                renderPolls();
+                showToast('New option added!', 'success');
+            }
+            closeAddSingleModal();
+        });
+
+        cancelAddSingleBtn.addEventListener('click', closeAddSingleModal);
+
+        /**
+         * Form Dynamic Option Creation
+         */
+        function updateOptionsCount() {
+            const inputs = optionsContainer.querySelectorAll('.poll-option-input');
+            optionsCountEl.textContent = `${inputs.length} Options`;
+        }
+
+        addOptionBtn.addEventListener('click', () => {
+            const inputs = optionsContainer.querySelectorAll('.poll-option-input');
+            if (inputs.length >= 6) {
+                showToast('Maximum 6 initial options allowed.', 'warning');
+                return;
+            }
+
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2';
+            row.innerHTML = `
+                <input type="text" placeholder="Option ${inputs.length + 1}" class="poll-option-input w-full px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 focus:border-indigo-500 focus:outline-none text-sm">
+                <button type="button" class="remove-option-btn text-red-400 hover:text-red-600 p-2"><i class="fa-solid fa-trash-can"></i></button>
+            `;
+            optionsContainer.appendChild(row);
+            updateOptionsCount();
+        });
+
+        optionsContainer.addEventListener('click', (e) => {
+            if (e.target.closest('.remove-option-btn')) {
+                const inputs = optionsContainer.querySelectorAll('.poll-option-input');
+                if (inputs.length <= 2) {
+                    showToast('A poll must have at least 2 options.', 'warning');
+                    return;
+                }
+                e.target.closest('.flex').remove();
+                updateOptionsCount();
+            }
+        });
+
+        /**
+         * Create Modal Controllers
+         */
+        function openModal() {
+            createModal.classList.remove('hidden');
+            setTimeout(() => {
+                createModal.classList.remove('opacity-0');
+                createModal.querySelector('.transform').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeModal() {
+            createModal.classList.add('opacity-0');
+            createModal.querySelector('.transform').classList.add('scale-95');
+            setTimeout(() => {
+                createModal.classList.add('hidden');
+                pollForm.reset();
+            }, 300);
+        }
+
+        createPollBtn.addEventListener('click', openModal);
+        emptyCreateBtn.addEventListener('click', openModal);
+        closeModalBtn.addEventListener('click', closeModal);
+        cancelModalBtn.addEventListener('click', closeModal);
+
+        /**
+         * Form Submit Handler
+         */
+        pollForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const question = document.getElementById('poll-question').value.trim();
+            const category = document.getElementById('poll-category').value;
+            const durationMinutes = parseInt(document.getElementById('poll-duration').value, 10);
+
+            const optionInputs = Array.from(optionsContainer.querySelectorAll('.poll-option-input'));
+            const optionTexts = optionInputs.map(i => i.value.trim()).filter(val => val.length > 0);
+
+            if (optionTexts.length < 2) {
+                showToast('Please provide at least 2 valid options.', 'warning');
+                return;
+            }
+
+            const newPoll = {
+                id: 'poll-' + Date.now(),
+                question: question,
+                category: category,
+                createdAt: Date.now(),
+                expiresAt: Date.now() + (durationMinutes * 60 * 1000),
+                options: optionTexts.map((text, idx) => ({
+                    id: `opt-${Date.now()}-${idx}`,
+                    text: text,
+                    votes: 0
+                }))
+            };
+
+            polls.unshift(newPoll);
+            saveToStorage();
+            renderPolls();
+            closeModal();
+            showToast('Poll created and published successfully!', 'success');
+        });
+
+        /**
+         * Search & Filter Controls
+         */
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            renderPolls();
+        });
+
+        document.getElementById('category-filters').addEventListener('click', (e) => {
+            const btn = e.target.closest('.filter-btn');
+            if (!btn) return;
+
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                b.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+                b.classList.add('bg-gray-200', 'dark:bg-gray-800', 'text-gray-600', 'dark:text-gray-300');
+            });
+
+            btn.classList.remove('bg-gray-200', 'dark:bg-gray-800', 'text-gray-600', 'dark:text-gray-300');
+            btn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+
+            selectedCategory = btn.dataset.category;
+            renderPolls();
+        });
+
+        /**
+         * Tab Switching Logic
+         */
+        tabActiveBtn.addEventListener('click', () => {
+            currentTab = 'active';
+            tabActiveBtn.className = 'pb-3 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 flex items-center gap-2 transition';
+            tabCompletedBtn.className = 'pb-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex items-center gap-2 transition';
+            renderPolls();
+        });
+
+        tabCompletedBtn.addEventListener('click', () => {
+            currentTab = 'completed';
+            tabCompletedBtn.className = 'pb-3 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 flex items-center gap-2 transition';
+            tabActiveBtn.className = 'pb-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex items-center gap-2 transition';
+            renderPolls();
+        });
+
+        /**
+         * Theme Toggle Logic
+         */
+        themeToggleBtn.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            themeIcon.className = isDark ? 'fa-solid fa-sun text-yellow-400 text-lg' : 'fa-solid fa-moon text-lg';
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        });
+
+        // Initialize theme preference
+        if (localStorage.getItem('theme') === 'light') {
+            document.documentElement.classList.remove('dark');
+            themeIcon.className = 'fa-solid fa-moon text-lg';
+        } else {
+            document.documentElement.classList.add('dark');
+            themeIcon.className = 'fa-solid fa-sun text-yellow-400 text-lg';
+        }
+
+        /**
+         * Real-time Countdown Timer Updates
+         */
+        setInterval(() => {
+            const timerElements = document.querySelectorAll('.timer-countdown');
+            timerElements.forEach(el => {
+                const expiresAt = parseInt(el.dataset.expires, 10);
+                const diff = expiresAt - Date.now();
+                el.textContent = formatTimeRemaining(diff);
+            });
+        }, 1000);
+
+        /**
+         * Init App
+         */
+        renderPolls();
+    </script>
+</body>
+</html>
